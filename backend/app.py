@@ -66,34 +66,95 @@ def analyze_url():
         # Extract features for analysis
         features = feature_extractor.extract(url)
         
-        # Apply rule-based engine (primary method)
-        analysis_result = rule_engine.analyze(url, features)
+        # ML MODEL IS PRIMARY DECISION AUTHORITY
+        # Rule engine is used only for generating explanations and evidence
+        ml_verdict = None
+        ml_confidence = 0.0
         
-        # Optional: Enhance with ML model if available
-        # ML model can adjust confidence or provide additional insights
         if ml_model is not None:
             try:
                 # Get feature names and prepare feature vector for model
                 feature_names = feature_extractor.get_feature_names()
                 feature_vector = [features.get(name, 0.0) for name in feature_names]
                 
-                # Get ML prediction (assumes model.predict() or model.predict_proba() exists)
-                # This is a placeholder - adjust based on your actual model interface
+                # Get ML prediction (ML is the decision authority)
                 if hasattr(ml_model, 'predict_proba'):
                     ml_prediction = ml_model.predict_proba([feature_vector])[0]
-                    # If ML suggests phishing with high confidence, enhance the rule-based result
-                    if len(ml_prediction) > 1 and ml_prediction[1] > 0.7:  # phishing probability > 70%
-                        if analysis_result['verdict'] == 'SAFE':
-                            analysis_result['verdict'] = 'SUSPICIOUS'
-                            analysis_result['riskLevel'] = 'Medium'
-                        elif analysis_result['riskLevel'] == 'Low':
-                            analysis_result['riskLevel'] = 'Medium'
+                    # ML model returns probabilities: [safe_prob, phishing_prob] or similar
+                    if len(ml_prediction) >= 2:
+                        phishing_prob = ml_prediction[1] if len(ml_prediction) > 1 else ml_prediction[0]
+                        ml_confidence = phishing_prob
+                        
+                        # ML decides verdict based on probability threshold
+                        if phishing_prob >= 0.7:
+                            ml_verdict = 'PHISHING'
+                        elif phishing_prob >= 0.4:
+                            ml_verdict = 'SUSPICIOUS'
+                        else:
+                            ml_verdict = 'SAFE'
+                    else:
+                        # Single probability output
+                        ml_confidence = ml_prediction[0]
+                        if ml_confidence >= 0.7:
+                            ml_verdict = 'PHISHING'
+                        elif ml_confidence >= 0.4:
+                            ml_verdict = 'SUSPICIOUS'
+                        else:
+                            ml_verdict = 'SAFE'
                 elif hasattr(ml_model, 'predict'):
                     ml_prediction = ml_model.predict([feature_vector])[0]
-                    # Adjust based on model output format
+                    # Binary classification: 0 = SAFE, 1 = PHISHING
+                    if ml_prediction == 1:
+                        ml_verdict = 'PHISHING'
+                        ml_confidence = 0.8  # Default confidence for binary
+                    else:
+                        ml_verdict = 'SAFE'
+                        ml_confidence = 0.2
             except Exception as e:
-                # If ML model fails, continue with rule-based result
-                print(f"ML model prediction error: {e}. Using rule-based result only.")
+                # If ML model fails, log error but continue
+                print(f"ML model prediction error: {e}. Will use rule-based fallback.")
+                ml_model = None  # Mark as unavailable
+        
+        # Use rule engine for explanations and evidence (not for verdict)
+        rule_result = rule_engine.analyze(url, features)
+        
+        # ML verdict takes precedence - it is the decision authority
+        if ml_verdict is not None:
+            # Use ML verdict, but keep rule engine explanations
+            final_verdict = ml_verdict
+            # Adjust risk level based on ML confidence
+            if ml_verdict == 'PHISHING':
+                final_risk = 'High'
+            elif ml_verdict == 'SUSPICIOUS':
+                final_risk = 'Medium' if ml_confidence >= 0.5 else 'Low'
+            else:
+                final_risk = 'Low'
+            
+            # Update explanation to reflect ML-based decision
+            explanation = f"We evaluated multiple technical parameters and derived this result using combined ML analysis. "
+            if ml_verdict == 'PHISHING':
+                explanation += "The ML model identified multiple indicators suggesting this URL is a phishing attempt."
+            elif ml_verdict == 'SUSPICIOUS':
+                explanation += "The ML model detected some concerning patterns that warrant caution."
+            else:
+                explanation += "The ML model analysis indicates this URL appears safe based on the evaluated parameters."
+        else:
+            # Fallback to rule-based if ML unavailable (should not happen in production)
+            final_verdict = rule_result['verdict']
+            final_risk = rule_result['riskLevel']
+            explanation = rule_result['explanation']
+            print("Warning: ML model unavailable, using rule-based fallback")
+        
+        # Build final result with ML verdict and rule-based explanations
+        analysis_result = {
+            'verdict': final_verdict,
+            'riskLevel': final_risk,
+            'explanation': explanation,
+            'evidence': rule_result['evidence'],
+            'checkedItems': rule_result['checkedItems'],
+            'identificationTips': rule_result['identificationTips'],
+            'actionSteps': rule_result['actionSteps']
+        }
         
         return jsonify(analysis_result), 200
         

@@ -1,5 +1,5 @@
-export type Verdict = "PHISHING" | "SAFE" | "SUSPICIOUS";
-export type RiskLevel = "Low" | "Medium" | "High";
+export type Verdict = "PHISHING" | "SAFE" | "SUSPICIOUS" | "PENDING";
+export type RiskLevel = "Low" | "Medium" | "High" | "Unknown";
 
 export interface EvidenceIndicator {
   label: string;
@@ -15,6 +15,14 @@ export interface AnalysisResult {
   checkedItems: string[];
   identificationTips: string[];
   actionSteps: string[];
+  backendAvailable: boolean;
+  frontendIndicators?: Array<{
+    parameter: string;
+    status: "safe" | "warning" | "danger";
+    icon: "check" | "alert" | "x";
+    message: string;
+    explanation: string;
+  }>;
 }
 
 /* ---------------- API CONFIGURATION ---------------- */
@@ -23,21 +31,38 @@ export interface AnalysisResult {
 // In production, this should be set via environment variable
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
+/* ---------------- FRONTEND INDICATOR EXTRACTION ---------------- */
+
+import { extractFrontendIndicators, indicatorsToCheckedItems, type URLIndicator } from './frontendIndicators';
+
+/**
+ * Always extracts frontend indicators (runs regardless of backend availability)
+ * These are technical indicators only - NOT verdicts
+ */
+function getFrontendIndicators(url: string): URLIndicator[] {
+  return extractFrontendIndicators(url);
+}
+
 /* ---------------- MAIN ANALYSIS (API CALL) ---------------- */
 
 /**
- * Analyzes a URL by calling the Flask backend API
+ * Analyzes a URL by:
+ * 1. Always extracting frontend indicators
+ * 2. Attempting backend ML analysis
+ * 3. Gracefully falling back to frontend-only if backend unavailable
  * 
- * This function sends the URL to the backend for analysis and returns
- * the structured result. Includes error handling for network failures
- * and backend errors.
+ * IMPORTANT: Frontend never makes verdicts. Only backend ML can determine final verdict.
  * 
  * @param url - The URL string to analyze
- * @returns Promise<AnalysisResult> - Analysis result from backend
+ * @returns Promise<AnalysisResult> - Analysis result with backend verdict or frontend indicators only
  */
 export const analyzeUrl = async (url: string): Promise<AnalysisResult> => {
+  // ALWAYS extract frontend indicators first
+  const frontendIndicators = getFrontendIndicators(url);
+  const frontendCheckedItems = indicatorsToCheckedItems(frontendIndicators);
+  
   try {
-    // Call Flask backend API
+    // Attempt to call Flask backend API
     const response = await fetch(`${API_BASE_URL}/api/analyze`, {
       method: 'POST',
       headers: {
@@ -48,55 +73,77 @@ export const analyzeUrl = async (url: string): Promise<AnalysisResult> => {
 
     // Handle HTTP errors
     if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
+      // Backend returned error - fall back to frontend-only
+      console.warn(`Backend returned error ${response.status}. Using frontend indicators only.`);
       
-      // If backend returns error with verdict, use it; otherwise use fallback
-      if (errorData.verdict && errorData.riskLevel) {
-        return {
-          verdict: errorData.verdict as Verdict,
-          riskLevel: errorData.riskLevel as RiskLevel,
-          explanation: errorData.error || 'Analysis failed',
-          evidence: [],
-          checkedItems: [],
-          identificationTips: ['Ensure the URL is complete and properly formatted'],
-          actionSteps: ['Please try again with a valid URL'],
-        };
-      }
-
-      // Network/HTTP error fallback
-      throw new Error(`API request failed: ${response.status} ${response.statusText}`);
+      return {
+        verdict: "PENDING",
+        riskLevel: "Unknown",
+        explanation: "Preliminary technical analysis (backend unavailable). We evaluated multiple technical indicators, but the final verdict requires ML analysis which is currently unavailable.",
+        evidence: frontendIndicators.map(ind => ({
+          label: ind.parameter,
+          status: ind.status,
+          icon: ind.icon,
+        })),
+        checkedItems: frontendCheckedItems,
+        identificationTips: [
+          "Check for misspelled or altered brand names",
+          "Look for urgent action keywords like 'verify' or 'confirm'",
+          "Be cautious of free domain extensions",
+          "Avoid entering sensitive information unless the site is verified"
+        ],
+        actionSteps: [
+          "Review the technical indicators shown above",
+          "Proceed with caution until full analysis is available",
+          "Verify the URL through official sources if possible"
+        ],
+        backendAvailable: false,
+        frontendIndicators: frontendIndicators,
+      };
     }
 
-    // Parse successful response
-    const data: AnalysisResult = await response.json();
-    return data;
+    // Parse successful backend response
+    const backendData: Omit<AnalysisResult, 'backendAvailable' | 'frontendIndicators'> = await response.json();
+    
+    // Merge backend result with frontend indicators for educational display
+    return {
+      ...backendData,
+      backendAvailable: true,
+      frontendIndicators: frontendIndicators,
+      // Ensure checkedItems includes both backend and frontend checks
+      checkedItems: [
+        ...(backendData.checkedItems || []),
+        ...frontendCheckedItems,
+      ],
+    };
 
   } catch (error) {
-    // Network failure or parsing error - return safe fallback result
-    console.error('URL analysis error:', error);
+    // Network failure or parsing error - graceful fallback to frontend-only
+    console.warn('Backend unavailable. Using frontend indicators only:', error);
     
     return {
-      verdict: "SUSPICIOUS",
-      riskLevel: "Medium",
-      explanation: "Unable to analyze URL. Please check your connection and try again.",
-      evidence: [
-        {
-          label: "Connection Error",
-          status: "warning",
-          icon: "alert",
-        },
-      ],
-      checkedItems: ["Unable to reach analysis server"],
+      verdict: "PENDING",
+      riskLevel: "Unknown",
+      explanation: "Preliminary technical analysis (backend unavailable). We evaluated multiple technical indicators, but the final verdict requires ML analysis which is currently unavailable.",
+      evidence: frontendIndicators.map(ind => ({
+        label: ind.parameter,
+        status: ind.status,
+        icon: ind.icon,
+      })),
+      checkedItems: frontendCheckedItems,
       identificationTips: [
-        "Check your internet connection",
-        "Ensure the backend server is running",
-        "Try again in a moment",
+        "Check for misspelled or altered brand names",
+        "Look for urgent action keywords like 'verify' or 'confirm'",
+        "Be cautious of free domain extensions",
+        "Avoid entering sensitive information unless the site is verified"
       ],
       actionSteps: [
-        "Verify your connection",
-        "Refresh the page and try again",
-        "Contact support if the issue persists",
+        "Review the technical indicators shown above",
+        "Proceed with caution until full analysis is available",
+        "Verify the URL through official sources if possible"
       ],
+      backendAvailable: false,
+      frontendIndicators: frontendIndicators,
     };
   }
 };

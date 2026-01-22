@@ -40,14 +40,14 @@ class RuleEngine:
         
         lower_url = url.lower().strip()
         
-        # Rule 1: HTTPS Check
+        # Rule 1: HTTPS Check (Indicator only - not a verdict)
         if features.get('has_https', 0) == 1.0:
             evidence.append({
                 'label': 'Protocol Security',
                 'status': 'safe',
                 'icon': 'check'
             })
-            checked_items.append('HTTPS protocol is enabled (secure connection)')
+            checked_items.append('HTTPS protocol is enabled (encryption only)')
         else:
             evidence.append({
                 'label': 'Protocol Security',
@@ -55,11 +55,12 @@ class RuleEngine:
                 'icon': 'alert'
             })
             checked_items.append('HTTPS protocol is missing (insecure connection)')
+            # Note: This is for rule-based fallback only. ML model will make final decision.
             if verdict == "SAFE":
                 verdict = "SUSPICIOUS"
                 risk_level = "Medium"
         
-        # Rule 2: Suspicious TLD
+        # Rule 2: Suspicious TLD (Indicator only - not a verdict)
         if features.get('suspicious_tld', 0) == 1.0:
             evidence.append({
                 'label': 'Domain Pattern',
@@ -67,10 +68,11 @@ class RuleEngine:
                 'icon': 'x'
             })
             checked_items.append('URL uses a free domain extension often associated with scams')
+            # Note: This is for rule-based fallback only. ML model will make final decision.
             verdict = "PHISHING"
             risk_level = "High"
         
-        # Rule 3: IP Address
+        # Rule 3: IP Address (Indicator only - not a verdict)
         if features.get('is_ip_address', 0) == 1.0:
             evidence.append({
                 'label': 'IP Address Usage',
@@ -78,6 +80,7 @@ class RuleEngine:
                 'icon': 'x'
             })
             checked_items.append('URL uses an IP address instead of a domain name (highly suspicious)')
+            # Note: This is for rule-based fallback only. ML model will make final decision.
             verdict = "PHISHING"
             risk_level = "High"
             identification_tips.append('Legitimate websites usually use domain names, not raw IP addresses')
@@ -101,8 +104,9 @@ class RuleEngine:
                     'icon': 'x'
                 })
                 checked_items.append(
-                    f"URL appears to mimic {brand_pattern['brand']} using suspicious character substitutions"
+                    f"Brand imitation pattern detected (resembles {brand_pattern['brand']} with character substitutions)"
                 )
+                # Note: This is for rule-based fallback only. ML model will make final decision.
                 verdict = "PHISHING"
                 risk_level = "High" if risk_level == "High" else "Medium"
                 identification_tips.append(
@@ -110,7 +114,7 @@ class RuleEngine:
                 )
                 break
         
-        # Rule 5: URL Length
+        # Rule 5: URL Length (Indicator only - not a verdict)
         url_length = features.get('url_length', 0)
         if url_length > 75:
             evidence.append({
@@ -119,6 +123,7 @@ class RuleEngine:
                 'icon': 'alert'
             })
             checked_items.append(f'URL is unusually long ({url_length} characters)')
+            # Note: This is for rule-based fallback only. ML model will make final decision.
             if verdict == "SAFE":
                 verdict = "SUSPICIOUS"
                 risk_level = "Medium"
@@ -128,9 +133,9 @@ class RuleEngine:
                 'status': 'safe',
                 'icon': 'check'
             })
-            checked_items.append(f'URL length is normal ({url_length} characters)')
+            checked_items.append(f'URL length is within normal range ({url_length} characters)')
         
-        # Rule 6: Suspicious Keywords
+        # Rule 6: Suspicious Keywords (Indicator only - not a verdict)
         keyword_count = features.get('suspicious_keyword_count', 0)
         if keyword_count > 0:
             evidence.append({
@@ -138,7 +143,8 @@ class RuleEngine:
                 'status': 'warning',
                 'icon': 'alert'
             })
-            checked_items.append('URL contains keywords commonly used in phishing attempts')
+            checked_items.append('Suspicious keywords detected')
+            # Note: This is for rule-based fallback only. ML model will make final decision.
             if verdict == "SAFE":
                 verdict = "SUSPICIOUS"
                 risk_level = "Medium"
@@ -150,13 +156,15 @@ class RuleEngine:
             })
             checked_items.append('No suspicious keywords detected')
         
-        # Generate explanation
+        # Generate explanation (Note: This is for rule-based fallback only)
+        # In normal operation, ML model verdict will override this
+        # Wording follows safety rules: "evaluated" not "decided"
         if verdict == "PHISHING":
-            explanation = "This URL shows multiple signs of being a phishing attempt. Do not visit or enter any information."
+            explanation = "We evaluated multiple technical indicators and derived this result using combined analysis. Multiple security indicators flagged this URL as potentially malicious."
         elif verdict == "SUSPICIOUS":
-            explanation = "This URL has some suspicious characteristics. Proceed with extreme caution."
+            explanation = "We evaluated multiple technical indicators and derived this result using combined analysis. Some security concerns were detected, but the URL may still be legitimate."
         else:
-            explanation = "This URL appears to be from a legitimate, well-known website."
+            explanation = "We evaluated multiple technical indicators and derived this result using combined analysis. Overall, the URL passes critical security checks and is considered safe."
         
         # Add default identification tips
         if not identification_tips:

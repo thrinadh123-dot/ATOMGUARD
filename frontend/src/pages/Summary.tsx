@@ -35,7 +35,11 @@ const Summary = () => {
 
   if (!url) return null;
 
-  const calculateRiskScore = (result: AnalysisResult): number => {
+  const calculateRiskScore = (result: AnalysisResult): number | string => {
+    if (result.verdict === "PENDING") {
+      return "N/A";
+    }
+    
     let score = 0;
     const totalChecks = result.checkedItems.length;
     const riskFactors = result.evidence.filter((e) => e.status === "danger" || e.status === "warning").length;
@@ -84,11 +88,20 @@ const Summary = () => {
               <div className="space-y-4 pt-2">
                 <div className="space-y-2">
                   <h2 className="font-display text-xl font-bold text-foreground">Verdict</h2>
-                  <p className="font-display text-3xl font-bold text-foreground">{result.verdict}</p>
+                  <p className="font-display text-3xl font-bold text-foreground">
+                    {result.verdict === "PENDING" ? "PENDING" : result.verdict}
+                  </p>
+                  {result.verdict === "PENDING" && (
+                    <p className="font-body text-sm text-muted-foreground">
+                      Backend ML analysis unavailable. Showing preliminary technical indicators only.
+                    </p>
+                  )}
                 </div>
                 <div className="space-y-2 pt-1">
                   <h2 className="font-display text-xl font-bold text-foreground">Risk Level</h2>
-                  <p className="font-display text-2xl font-bold text-foreground uppercase tracking-wide">{result.riskLevel}</p>
+                  <p className="font-display text-2xl font-bold text-foreground uppercase tracking-wide">
+                    {result.riskLevel === "Unknown" ? "UNKNOWN" : result.riskLevel}
+                  </p>
                 </div>
               </div>
 
@@ -123,13 +136,25 @@ const Summary = () => {
               </div>
 
               <div className="space-y-3 pt-4 border-t border-border/50">
-                <p className="font-body text-foreground italic">
-                  Based on the above analysis, the overall risk level is {getRiskLevelText(result.riskLevel)}.
-                </p>
+                {result.verdict !== "PENDING" && (
+                  <p className="font-body text-foreground italic">
+                    Based on the above analysis, the overall risk level is {getRiskLevelText(result.riskLevel)}.
+                  </p>
+                )}
+                {result.verdict === "PENDING" && (
+                  <p className="font-body text-foreground italic">
+                    Final risk assessment requires ML analysis which is currently unavailable.
+                  </p>
+                )}
                 <h2 className="font-display text-xl font-bold text-foreground pt-2">Final Risk Score</h2>
                 <p className="font-display text-3xl font-bold text-foreground">
-                  {calculateRiskScore(result)}/100
+                  {calculateRiskScore(result) === "N/A" ? "N/A" : `${calculateRiskScore(result)}/100`}
                 </p>
+                {result.verdict === "PENDING" && (
+                  <p className="font-body text-xs text-muted-foreground mt-2">
+                    Risk score calculation requires ML analysis.
+                  </p>
+                )}
               </div>
             </div>
 

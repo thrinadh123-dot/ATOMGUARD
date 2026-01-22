@@ -51,6 +51,8 @@ const Result = () => {
       return <ShieldAlert className="w-12 h-12 text-destructive" />;
     } else if (result.verdict === "SUSPICIOUS") {
       return <AlertTriangle className="w-12 h-12 text-yellow-500" />;
+    } else if (result.verdict === "PENDING") {
+      return <AlertCircle className="w-12 h-12 text-muted-foreground" />;
     } else {
       return <ShieldCheck className="w-12 h-12 text-success" />;
     }
@@ -62,6 +64,8 @@ const Result = () => {
       return "border-destructive/30 bg-destructive/5";
     } else if (result.verdict === "SUSPICIOUS") {
       return "border-yellow-500/30 bg-yellow-500/5";
+    } else if (result.verdict === "PENDING") {
+      return "border-border/50 bg-secondary/30";
     } else {
       return "border-success/30 bg-success/5";
     }
@@ -73,6 +77,8 @@ const Result = () => {
       return "text-destructive";
     } else if (result.verdict === "SUSPICIOUS") {
       return "text-yellow-500";
+    } else if (result.verdict === "PENDING") {
+      return "text-muted-foreground";
     } else {
       return "text-success";
     }
@@ -84,6 +90,8 @@ const Result = () => {
       return "text-destructive";
     } else if (result.riskLevel === "Medium") {
       return "text-yellow-500";
+    } else if (result.riskLevel === "Unknown") {
+      return "text-muted-foreground";
     } else {
       return "text-success";
     }
@@ -104,11 +112,13 @@ const Result = () => {
 
   const getVerdictJustification = (result: AnalysisResult): string => {
     if (result.verdict === "PHISHING") {
-      return "Multiple security indicators flagged this URL as potentially malicious.";
+      return "We evaluated multiple technical indicators and derived this result using combined ML analysis. Multiple security indicators flagged this URL as potentially malicious.";
     } else if (result.verdict === "SUSPICIOUS") {
-      return "Some security concerns were detected, but the URL may still be legitimate.";
+      return "We evaluated multiple technical indicators and derived this result using combined ML analysis. Some security concerns were detected, but the URL may still be legitimate.";
+    } else if (result.verdict === "PENDING") {
+      return result.explanation || "Preliminary technical analysis (backend unavailable). We evaluated multiple technical indicators, but the final verdict requires ML analysis which is currently unavailable.";
     } else {
-      return "Overall, the URL passes critical security checks and is considered safe.";
+      return "We evaluated multiple technical indicators and derived this result using combined ML analysis. Overall, the URL passes critical security checks and is considered safe.";
     }
   };
 
@@ -221,23 +231,44 @@ const Result = () => {
               {getVerdictIcon()}
             </div>
             <h1 className={`font-display text-3xl md:text-4xl font-bold mb-3 ${getVerdictTextColor()}`}>
-              {result.verdict === "PHISHING" ? "PHISHING DETECTED" : result.verdict === "SUSPICIOUS" ? "SUSPICIOUS" : "SAFE"}
+              {result.verdict === "PHISHING" ? "PHISHING DETECTED" : 
+               result.verdict === "SUSPICIOUS" ? "SUSPICIOUS" : 
+               result.verdict === "PENDING" ? "VERDICT: PENDING" : 
+               "SAFE"}
                 </h1>
             <p className="font-body text-foreground/90 text-sm md:text-base mb-4 leading-relaxed max-w-xl mx-auto font-medium">
               {getVerdictJustification(result)}
             </p>
-            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-background/50 border border-border/50 mb-2">
-              <span className="font-body text-xs text-muted-foreground">Risk Level:</span>
-              <span className={`font-display font-semibold text-xs ${getRiskLevelColor()}`}>
-                {result.riskLevel}
-              </span>
-            </div>
+            {result.verdict !== "PENDING" && (
+              <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-background/50 border border-border/50 mb-2">
+                <span className="font-body text-xs text-muted-foreground">Risk Level:</span>
+                <span className={`font-display font-semibold text-xs ${getRiskLevelColor()}`}>
+                  {result.riskLevel}
+                </span>
+              </div>
+            )}
+            {result.verdict === "PENDING" && (
+              <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-background/50 border border-border/50 mb-2">
+                <span className="font-body text-xs text-muted-foreground">Risk Level:</span>
+                <span className={`font-display font-semibold text-xs ${getRiskLevelColor()}`}>
+                  Unknown
+                </span>
+              </div>
+            )}
+            {!result.backendAvailable && (
+              <div className="mt-3 px-4 py-2 rounded-lg bg-yellow-500/10 border border-yellow-500/20">
+                <p className="font-body text-xs text-yellow-600 dark:text-yellow-400 text-center">
+                  ⚠️ Backend ML analysis unavailable. Showing preliminary technical indicators only.
+                </p>
+              </div>
+            )}
             <p className="font-body text-foreground/70 text-xs mt-3 leading-relaxed max-w-xl mx-auto">
               {result.explanation}
             </p>
               </div>
 
-          {/* Risk Snapshot */}
+          {/* Risk Snapshot - Only show if backend is available */}
+          {result.backendAvailable && (
           <div className="glass-card p-6">
             <h2 className="font-display text-lg font-semibold text-foreground mb-4">
               Risk Snapshot
@@ -316,6 +347,7 @@ const Result = () => {
               </p>
             )}
               </div>
+          )}
 
           {/* View Analysis Summary Button */}
           <div className="text-center">
