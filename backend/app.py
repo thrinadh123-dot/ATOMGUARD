@@ -177,3 +177,55 @@ if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port, debug=True)
 
+from flask import Flask, request, jsonify
+from flask_cors import CORS
+import pickle
+
+from feature_extractor import extract_features
+
+app = Flask(__name__)
+CORS(app)
+
+# Load model ONCE at startup
+with open("model.pkl", "rb") as f:
+    model = pickle.load(f)
+
+@app.route("/analyze", methods=["POST"])
+def analyze_url():
+    data = request.get_json()
+
+    if not data or "url" not in data:
+        return jsonify({"error": "URL not provided"}), 400
+
+    url = data["url"]
+
+    # Feature extraction
+    features = extract_features(url)
+
+    # Prediction
+    prediction = model.predict([features])[0]
+    probability = model.predict_proba([features])[0][1]
+
+    status = "Phishing" if prediction == 1 else "Legitimate"
+    confidence = round(probability * 100, 2)
+
+    # Simple explanation logic (based on features)
+    reasons = []
+    if features[0] > 75:
+        reasons.append("URL length is unusually long")
+    if features[2] == 1:
+        reasons.append("Contains '@' symbol")
+    if features[4] == 0:
+        reasons.append("Does not use HTTPS")
+    if features[6] > 1:
+        reasons.append("Multiple subdomains detected")
+
+    return jsonify({
+        "url": url,
+        "status": status,
+        "confidence": f"{confidence}%",
+        "reasons": reasons
+    })
+
+if __name__ == "__main__":
+    app.run(debug=True)
