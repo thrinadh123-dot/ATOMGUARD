@@ -10,12 +10,14 @@ export interface EvidenceIndicator {
 export interface AnalysisResult {
   verdict: Verdict;
   riskLevel: RiskLevel;
+  confidence?: number; // ML confidence score (0-100 percentage)
   explanation: string;
   evidence: EvidenceIndicator[];
   checkedItems: string[];
   identificationTips: string[];
   actionSteps: string[];
   backendAvailable: boolean;
+  mlAvailable?: boolean;
   frontendIndicators?: Array<{
     parameter: string;
     status: "safe" | "warning" | "danger";
@@ -108,13 +110,12 @@ export const analyzeUrl = async (url: string): Promise<AnalysisResult> => {
     // Merge backend result with frontend indicators for educational display
     return {
       ...backendData,
-      backendAvailable: true,
+      // Backend availability must be based on HTTP success, not confidence.
+      backendAvailable: response.ok,
       frontendIndicators: frontendIndicators,
-      // Ensure checkedItems includes both backend and frontend checks
-      checkedItems: [
-        ...(backendData.checkedItems || []),
-        ...frontendCheckedItems,
-      ],
+      // Pin-to-pin: do NOT merge frontend checks into backend checkedItems.
+      // Frontend indicators are educational-only and are exposed via `frontendIndicators`.
+      checkedItems: backendData.checkedItems || [],
     };
 
   } catch (error) {

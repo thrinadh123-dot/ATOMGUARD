@@ -19,6 +19,9 @@ const HowItWorks = () => {
 
     // Call backend API for analysis
     const performAnalysis = async () => {
+      // Reset state to prevent leaking previous analysis between URLs
+      setIsLoading(true);
+      setResult(null);
       try {
         const analysisResult = await analyzeUrl(url);
         setResult(analysisResult);

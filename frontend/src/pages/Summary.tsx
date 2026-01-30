@@ -20,6 +20,9 @@ const Summary = () => {
 
     // Call backend API for analysis
     const performAnalysis = async () => {
+      // Reset state to prevent leaking previous analysis between URLs
+      setIsLoading(true);
+      setResult(null);
       try {
         const analysisResult = await analyzeUrl(url);
         setResult(analysisResult);
@@ -34,26 +37,6 @@ const Summary = () => {
   }, [url, navigate]);
 
   if (!url) return null;
-
-  const calculateRiskScore = (result: AnalysisResult): number | string => {
-    if (result.verdict === "PENDING") {
-      return "N/A";
-    }
-    
-    let score = 0;
-    const totalChecks = result.checkedItems.length;
-    const riskFactors = result.evidence.filter((e) => e.status === "danger" || e.status === "warning").length;
-    
-    if (result.verdict === "PHISHING") {
-      score = Math.min(100, 70 + riskFactors * 10);
-    } else if (result.verdict === "SUSPICIOUS") {
-      score = Math.min(100, 40 + riskFactors * 10);
-    } else {
-      score = Math.max(0, 20 - riskFactors * 5);
-    }
-    
-    return Math.round(score);
-  };
 
   const getRiskLevelText = (riskLevel: string): string => {
     return riskLevel.toLowerCase();
@@ -89,7 +72,11 @@ const Summary = () => {
                 <div className="space-y-2">
                   <h2 className="font-display text-xl font-bold text-foreground">Verdict</h2>
                   <p className="font-display text-3xl font-bold text-foreground">
-                    {result.verdict === "PENDING" ? "PENDING" : result.verdict}
+                    {result.mlAvailable === false
+                      ? "PRELIMINARY ANALYSIS"
+                      : result.verdict === "PENDING"
+                      ? "PENDING"
+                      : result.verdict}
                   </p>
                   {result.verdict === "PENDING" && (
                     <p className="font-body text-sm text-muted-foreground">
@@ -100,9 +87,29 @@ const Summary = () => {
                 <div className="space-y-2 pt-1">
                   <h2 className="font-display text-xl font-bold text-foreground">Risk Level</h2>
                   <p className="font-display text-2xl font-bold text-foreground uppercase tracking-wide">
-                    {result.riskLevel === "Unknown" ? "UNKNOWN" : result.riskLevel}
+                    {result.riskLevel === "Unknown"
+                      ? "UNKNOWN"
+                      : result.mlAvailable === false && result.riskLevel === "High"
+                      ? "Medium"
+                      : result.riskLevel}
                   </p>
                 </div>
+                {result.backendAvailable && result.mlAvailable !== false && typeof result.confidence === "number" && (
+                  <div className="space-y-2 pt-1">
+                    <h2 className="font-display text-xl font-bold text-foreground">ML Confidence</h2>
+                    <p className="font-display text-2xl font-bold text-foreground uppercase tracking-wide">
+                      {result.confidence}%
+                    </p>
+                  </div>
+                )}
+                {result.backendAvailable && result.mlAvailable === false && (
+                  <div className="space-y-2 pt-1">
+                    <h2 className="font-display text-xl font-bold text-foreground">ML Confidence</h2>
+                    <p className="font-display text-2xl font-bold text-muted-foreground uppercase tracking-wide">
+                      ML unavailable
+                    </p>
+                  </div>
+                )}
               </div>
 
               <div className="space-y-3 pt-6 border-t border-border/30">
@@ -146,15 +153,9 @@ const Summary = () => {
                     Final risk assessment requires ML analysis which is currently unavailable.
                   </p>
                 )}
-                <h2 className="font-display text-xl font-bold text-foreground pt-2">Final Risk Score</h2>
-                <p className="font-display text-3xl font-bold text-foreground">
-                  {calculateRiskScore(result) === "N/A" ? "N/A" : `${calculateRiskScore(result)}/100`}
+                <p className="font-body text-xs text-muted-foreground mt-2">
+                  This summary displays backend results as-is. No client-side risk scoring is computed.
                 </p>
-                {result.verdict === "PENDING" && (
-                  <p className="font-body text-xs text-muted-foreground mt-2">
-                    Risk score calculation requires ML analysis.
-                  </p>
-                )}
               </div>
             </div>
 
