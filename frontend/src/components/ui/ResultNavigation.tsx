@@ -11,38 +11,39 @@ const ResultNavigation = () => {
     { path: "/result/what-should-we-do", label: "What should we do" },
   ];
 
-  const isActive = (path: string) => {
-    if (path === "/result") {
-      return location.pathname === "/result";
-    }
-    return location.pathname === path;
-  };
-
-  const handleNavClick = (path: string) => {
-    const currentState = location.state;
-    navigate(path, { state: currentState });
-  };
+  const isActive = (path: string) =>
+    path === "/result"
+      ? location.pathname === "/result"
+      : location.pathname === path;
 
   return (
-    <div className="glass-card py-2 px-4 mb-4 max-w-2xl mx-auto">
-      <div className="flex gap-2 flex-wrap items-center justify-center">
-        {navItems.map((item) => (
-          <button
-            key={item.path}
-            onClick={() => handleNavClick(item.path)}
-            className={`flex items-center justify-center px-3 py-1.5 h-8 rounded-lg font-body text-sm font-medium transition-colors border box-border ${
-              isActive(item.path)
-                ? "bg-primary/10 text-primary border-primary/20"
-                : "bg-secondary/50 text-muted-foreground border-border/50 hover:bg-secondary"
-            }`}
-          >
-            <span className="leading-none">{item.label}</span>
-          </button>
-        ))}
+    <nav className="flex justify-center">
+      <div className="flex flex-wrap items-center gap-3">
+        {navItems.map((item) => {
+          const active = isActive(item.path);
+
+          return (
+            <button
+              key={item.path}
+              onClick={() => navigate(item.path, { state: location.state })}
+              className={`relative px-4 py-2 rounded-full text-sm font-medium transition-all
+                ${
+                  active
+                    ? "text-primary bg-primary/10"
+                    : "text-muted-foreground hover:text-foreground hover:bg-secondary/40"
+                }`}
+            >
+              {item.label}
+
+              {active && (
+                <span className="absolute left-1/2 -bottom-1 h-[2px] w-6 -translate-x-1/2 rounded-full bg-primary" />
+              )}
+            </button>
+          );
+        })}
       </div>
-    </div>
+    </nav>
   );
 };
 
 export default ResultNavigation;
-

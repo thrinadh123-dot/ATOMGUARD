@@ -10,45 +10,46 @@ interface ResultLayoutProps {
 }
 
 const ResultLayout = ({ children, showNavigation = true }: ResultLayoutProps) => {
-  // Use mobile detection hook for responsive behavior
   const isMobile = useIsMobile();
-  
+
   return (
-    <div className="min-h-screen bg-background hero-gradient">
-      {/* Header */}
-      <header className="w-full py-6 px-6">
-        <div className="max-w-7xl mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
-            <AtomLogo className="w-9 h-9 animate-rotate-slow" />
-            <span className="font-display font-semibold text-xl text-foreground tracking-wide">
+    <div className="min-h-screen bg-background hero-gradient flex flex-col">
+      {/* HEADER */}
+      <header className="w-full border-b border-border/20">
+        <div className="max-w-7xl mx-auto flex items-center justify-between px-10 min-h-[80px]">
+          {/* Brand */}
+          <div className="flex items-center gap-2">
+            <AtomLogo className="w-6 h-6 md:w-7 md:h-7 animate-rotate-slow" />
+            <h1 className="font-display text-xl md:text-2xl font-semibold">
               AtomGuard
-            </span>
+            </h1>
           </div>
-          {/* Hide subtitle on mobile devices using hook */}
-          <div className={isMobile ? "hidden" : "hidden sm:flex items-center gap-2 text-sm text-muted-foreground"}>
-            <Sparkles className="w-4 h-4 text-primary" />
-            <span className="font-body">AI-Powered Phishing Detection</span>
-          </div>
+
+          {/* Context */}
+          {!isMobile && (
+            <div className="flex items-center gap-2 text-muted-foreground">
+              <Sparkles className="w-5 h-5 text-primary" />
+              <span>Advanced Phishing Detection</span>
+            </div>
+          )}
         </div>
       </header>
 
-      {/* Main Content */}
-      <main className="px-6 py-8 md:py-12">
-        <div className="max-w-4xl mx-auto">
-          {showNavigation && <ResultNavigation />}
+      {/* NAVIGATION */}
+      {showNavigation && (
+        <div className="mt-8 mb-12 flex justify-center">
+          <ResultNavigation />
+        </div>
+      )}
+
+      {/* PAGE CONTENT */}
+      <main className="flex-1 flex justify-center px-4 pb-16">
+        <div className="w-full max-w-4xl">
           {children}
         </div>
       </main>
-
-      {/* Footer */}
-      <footer className="py-6 px-6 border-t border-border/30 mt-8">
-        <p className="font-body text-center text-sm text-muted-foreground">
-          AtomGuard is an educational phishing detection tool. Always verify URLs through official sources.
-        </p>
-      </footer>
     </div>
   );
 };
 
 export default ResultLayout;
-

@@ -13,8 +13,9 @@ Project: Phishing Website and URL Detection Using Machine Learning
 """
 
 import os
-import pickle
+import joblib
 import ipaddress
+import traceback
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 
@@ -25,7 +26,7 @@ import os
 _backend_dir = os.path.dirname(os.path.abspath(__file__))
 if _backend_dir not in sys.path:
     sys.path.insert(0, _backend_dir)
-from ml_feature_extractor import extract_features
+from ml_feature_extractor import extract_features, get_feature_count
 
 # Import rule-based feature extractor (returns DICT)
 from features.feature_extractor import FeatureExtractor
@@ -81,48 +82,107 @@ MODEL_PATH = os.path.join(
     "phishing_model.pkl"
 )
 
+# Get absolute path for logging
+MODEL_PATH_ABS = os.path.abspath(MODEL_PATH)
+
 ml_model = None
+ml_available = False  # Global flag to track ML availability
 
 try:
-    if os.path.exists(MODEL_PATH) and os.path.getsize(MODEL_PATH) > 0:
-        with open(MODEL_PATH, "rb") as f:
-            ml_model = pickle.load(f)
-        
-        # Validate model compatibility
-        if not hasattr(ml_model, 'predict_proba') and not hasattr(ml_model, 'predict'):
-            raise ValueError("Loaded model does not support predict_proba() or predict()")
-        
-        # Test feature compatibility with a dummy feature vector
-        try:
-            test_features = [0.0] * 7  # Model expects 7 features
-            if hasattr(ml_model, 'predict_proba'):
-                _ = ml_model.predict_proba([test_features])
-            elif hasattr(ml_model, 'predict'):
-                _ = ml_model.predict([test_features])
-            print("✅ ML model loaded successfully from:", MODEL_PATH)
-            print("✅ Model compatibility verified (7 features)")
-        except ValueError as ve:
-            if "features" in str(ve).lower():
-                # Extract expected feature count from error
-                import re
-                match = re.search(r'expecting (\d+) features', str(ve))
-                if match:
-                    expected = match.group(1)
-                    print(f"❌ Model feature mismatch: Model expects {expected} features, but extractor provides 7")
-                    print("⚠️  Model may have been trained with different features")
-                    raise ValueError(f"Feature count mismatch: model expects {expected} features")
-            raise
-        
-    else:
-        print("⚠️  ML model not found at:", MODEL_PATH)
+    # Explicitly check that model file exists
+    if not os.path.exists(MODEL_PATH_ABS):
+        print(f"❌ ERROR: ML model file not found at: {MODEL_PATH_ABS}")
         print("⚠️  Backend will use rule-based fallback only")
         ml_model = None
+        ml_available = False
+    elif os.path.getsize(MODEL_PATH_ABS) == 0:
+        print(f"❌ ERROR: ML model file is empty (0 bytes) at: {MODEL_PATH_ABS}")
+        print("⚠️  Backend will use rule-based fallback only")
+        ml_model = None
+        ml_available = False
+    else:
+        # File exists and has content, attempt to load
+        print(f"📂 Model path: {MODEL_PATH_ABS}")
+        print(f"📊 Model file size: {os.path.getsize(MODEL_PATH_ABS)} bytes")
+        
+        try:
+            # Load model using joblib
+            ml_model = joblib.load(MODEL_PATH_ABS)
+            print("✅ Model file loaded successfully")
+            
+            # Verify model has predict_proba() method
+            if not hasattr(ml_model, 'predict_proba'):
+                if hasattr(ml_model, 'predict'):
+                    print("⚠️  WARNING: Model only supports predict(), not predict_proba()")
+                else:
+                    raise ValueError("Loaded model does not support predict_proba() or predict()")
+            else:
+                print("✅ Model has predict_proba() method")
+            
+            # Validate feature compatibility
+            extractor_feature_count = get_feature_count()
+            print(f"📊 Feature extractor provides {extractor_feature_count} features")
+            
+            # Check model's expected feature count if available
+            if hasattr(ml_model, 'n_features_in_'):
+                model_expected_features = ml_model.n_features_in_
+                print(f"📊 Model expects {model_expected_features} features (n_features_in_)")
+                
+                if model_expected_features != extractor_feature_count:
+                    error_msg = (
+                        f"❌ ERROR: Feature count mismatch! "
+                        f"Model expects {model_expected_features} features but extractor provides {extractor_feature_count}"
+                    )
+                    print(error_msg)
+                    raise ValueError(error_msg)
+                else:
+                    print("✅ Feature count validation passed")
+            else:
+                # Model doesn't have n_features_in_, test with dummy features
+                print("⚠️  Model does not have n_features_in_ attribute, testing with dummy features...")
+                test_features = [0.0] * extractor_feature_count
+                try:
+                    if hasattr(ml_model, 'predict_proba'):
+                        _ = ml_model.predict_proba([test_features])
+                    elif hasattr(ml_model, 'predict'):
+                        _ = ml_model.predict([test_features])
+                    print(f"✅ Model compatibility verified ({extractor_feature_count} features)")
+                except ValueError as ve:
+                    error_msg = str(ve)
+                    if "features" in error_msg.lower() and "expecting" in error_msg.lower():
+                        # Extract expected feature count from error
+                        import re
+                        match = re.search(r'expecting (\d+) features', error_msg)
+                        if match:
+                            expected = match.group(1)
+                            error_msg = (
+                                f"❌ ERROR: Model expects {expected} features but extractor provides {extractor_feature_count}"
+                            )
+                            print(error_msg)
+                            raise ValueError(error_msg)
+                    raise
+            
+            # All validations passed
+            ml_available = True
+            print("✅ ML Model: ✅ Available and ready")
+            
+        except Exception as load_error:
+            # Error during model loading
+            print(f"❌ ERROR: Failed to load ML model")
+            print(f"   Error: {str(load_error)}")
+            print(f"   Traceback:\n{traceback.format_exc()}")
+            print("⚠️  Backend will use rule-based fallback only")
+            ml_model = None
+            ml_available = False
+            
 except Exception as e:
-    import traceback
-    print("❌ Error loading ML model:", str(e))
-    print("   Traceback:", traceback.format_exc())
+    # Unexpected error during setup
+    print(f"❌ ERROR: Unexpected error during ML model setup")
+    print(f"   Error: {str(e)}")
+    print(f"   Traceback:\n{traceback.format_exc()}")
     print("⚠️  Backend will use rule-based fallback only")
     ml_model = None
+    ml_available = False
 
 # ==================== API ENDPOINTS ====================
 
@@ -235,13 +295,13 @@ def analyze_url():
         
         ml_verdict = None
         ml_confidence = 0.0
-        ml_available = False  # Track if ML prediction succeeded
+        prediction_succeeded = False  # Track if THIS prediction succeeded
         
-        if ml_model is not None:
+        # Only attempt ML prediction if model is loaded and available
+        if ml_model is not None and ml_available:
             try:
-                # Validate feature vector length
-                # Model expects exactly 7 features (as per training)
-                expected_features = 7
+                # Validate feature vector length using get_feature_count()
+                expected_features = get_feature_count()
                 if len(ml_features) != expected_features:
                     raise ValueError(
                         f"Feature vector length mismatch: model expects {expected_features} features, "
@@ -272,7 +332,7 @@ def analyze_url():
                     else:
                         ml_verdict = "SAFE"
                     
-                    ml_available = True
+                    prediction_succeeded = True
                     print(f"✅ ML prediction: {ml_verdict} (confidence: {ml_confidence:.2%})")
                         
                 elif hasattr(ml_model, 'predict'):
@@ -285,18 +345,18 @@ def analyze_url():
                         ml_verdict = "SAFE"
                         ml_confidence = 0.2  # Default low confidence
                     
-                    ml_available = True
+                    prediction_succeeded = True
                     print(f"✅ ML prediction: {ml_verdict} (binary classification)")
                 else:
                     raise ValueError("ML model does not support predict_proba or predict")
                     
             except Exception as e:
-                import traceback
+                # Log prediction failure with full traceback
                 error_msg = str(e)
                 print(f"❌ ML prediction error: {error_msg}")
                 print(f"   Feature vector length: {len(ml_features)}")
                 print(f"   Feature vector: {ml_features}")
-                print(f"   Traceback: {traceback.format_exc()}")
+                print(f"   Full traceback:\n{traceback.format_exc()}")
                 
                 # Check if it's a feature mismatch error
                 if "features" in error_msg.lower() and "expecting" in error_msg.lower():
@@ -304,8 +364,11 @@ def analyze_url():
                     print("   ⚠️  This indicates the model was trained with different features.")
                     print("   ⚠️  Please verify the model training feature set matches extract_features().")
                 
-                # Fall through to rule-based fallback
-                ml_available = False
+                # Prediction failed - will fall through to rule-based fallback
+                prediction_succeeded = False
+        elif ml_model is None or not ml_available:
+            # Model not loaded or not available - will use fallback
+            prediction_succeeded = False
         
         # ========== POST-ML HARDENING LAYERS ==========
         # These layers run AFTER ML prediction to ensure correctness
@@ -356,9 +419,9 @@ def analyze_url():
                 # Not an IP address, continue normally
                 pass
 
-        # ========== FALLBACK TO RULE-BASED (if ML unavailable) ==========
+        # ========== FALLBACK TO RULE-BASED (if ML unavailable or prediction failed) ==========
         
-        if not ml_available:
+        if not prediction_succeeded:
             # SAFE DOMAIN ALLOWLIST (fallback mode only)
             domain = extract_domain(url) or ""
             safe_domains = {
@@ -475,7 +538,7 @@ def analyze_url():
             "verdict": ml_verdict,  # ML verdict (or rule fallback, possibly adjusted by hardening layers)
             "riskLevel": risk_level,
             "confidence": round(ml_confidence * 100, 2),  # Percentage (always preserved from ML)
-            "mlAvailable": ml_available,
+            "mlAvailable": prediction_succeeded,
             "explanation": explanation,  # Transparent explanation of decision and any adjustments
             "evidence": rule_result["evidence"],  # From rule engine
             "checkedItems": rule_result["checkedItems"],  # From rule engine
@@ -525,7 +588,7 @@ def health_check():
     return jsonify({
         "status": "healthy",
         "service": "AtomGuard API",
-        "ml_model_loaded": ml_model is not None
+        "ml_model_loaded": ml_available
     }), 200
 
 
@@ -540,7 +603,12 @@ if __name__ == "__main__":
     print("="*50)
     print(f"📍 Host: {host}")
     print(f"🔌 Port: {port}")
-    print(f"🤖 ML Model: {'✅ Loaded' if ml_model else '❌ Not Available'}")
+    print(f"🤖 ML Model: {'✅ Available' if ml_available else '❌ Not Available'}")
+    if ml_available:
+        print(f"   Model path: {MODEL_PATH_ABS}")
+        print(f"   Feature count: {get_feature_count()}")
+    else:
+        print(f"   Model path checked: {MODEL_PATH_ABS}")
     print("="*50 + "\n")
     
     app.run(host=host, port=port, debug=True)
