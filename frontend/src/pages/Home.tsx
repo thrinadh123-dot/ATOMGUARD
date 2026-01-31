@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Search, Zap, Sparkles, ShieldCheck } from "lucide-react";
-import AtomLogo from "@/components/ui/AtomLogo";
+import AtomLogo from "@/components/common/AtomLogo";
 
 const Home = () => {
   const [url, setUrl] = useState("");
@@ -31,7 +31,7 @@ const Home = () => {
           </div>
           <div className="hidden sm:flex items-center gap-2 text-sm text-muted-foreground">
             <Sparkles className="w-4 h-4 text-primary" />
-            <span className="font-body">AI-Powered Detection</span>
+            <span className="font-body">Advanced Phishing Detection</span>
           </div>
         </div>
       </header>
@@ -51,7 +51,7 @@ const Home = () => {
               <span className="text-gradient">Detection</span>
             </h1>
             <p className="font-body text-muted-foreground text-base md:text-lg max-w-2xl mx-auto mb-0 leading-relaxed">
-              Get a detailed analysis with explanation, risk indicators, and a comprehensive score—not just a simple Safe/Unsafe label.
+            Analyze URLs instantly using security indicators to identify phishing, suspicious, or safe links.
             </p>
           </div>
 
@@ -83,7 +83,7 @@ const Home = () => {
             <div className="mt-6 pt-6 border-t border-border/30">
               <p className="font-body text-sm text-muted-foreground mb-3">Try these examples:</p>
               <div className="flex flex-wrap gap-2">
-                {["google.com", "paypa1.com", "amaz0n-secure.tk", "192.168.1.1/login"].map(
+                {["google.com", "paypa1.com", "amaz0n-secure.tk"].map(
                   (example) => (
                     <button
                       key={example}
@@ -107,17 +107,17 @@ const Home = () => {
               {
                 icon: ShieldCheck,
                 title: "Pattern Detection",
-                desc: "Identifies common phishing tricks like misspelled domains",
+                desc: "Detects common phishing patterns such as misspelled or fake domains.",
               },
               {
                 icon: Zap,
                 title: "Instant Results",
-                desc: "Get analysis in seconds with clear, simple explanations",
+                desc: "Get instant analysis with clear, easy-to-understand explanations.",
               },
               {
                 icon: Sparkles,
                 title: "Student-Friendly",
-                desc: "Easy to understand results without technical jargon",
+                desc: "Designed for students with simple, non-technical insights.",
               },
             ].map((feature, i) => (
               <div
@@ -140,7 +140,7 @@ const Home = () => {
       {/* Footer */}
       <footer className="py-8 px-6 border-t border-border/30">
         <p className="font-body text-center text-sm text-muted-foreground">
-          AtomGuard is an educational tool for demonstration purposes. Always verify URLs through official sources.
+        AtomGuard is an educational phishing detection tool.
         </p>
       </footer>
     </div>

@@ -57,4 +57,3 @@ const AtomLogo = ({ className = "w-9 h-9", variant = "primary" }: AtomLogoProps)
 };
 
 export default AtomLogo;
-

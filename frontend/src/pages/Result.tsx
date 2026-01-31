@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { ShieldCheck, ShieldAlert, AlertTriangle, AlertCircle, ArrowLeft } from "lucide-react";
-import ResultLayout from "@/components/ui/ResultLayout";
-import { analyzeUrl, type AnalysisResult } from "@/lib/urlAnalysis";
+import ResultLayout from "@/components/layout/ResultLayout";
+import { analyzeUrl } from "@/services/analysisService";
+import type { AnalysisResult } from "@/types/analysis";
 
 const Result = () => {
   const location = useLocation();
@@ -259,12 +260,14 @@ const Result = () => {
             </button>
 
             {/* Secondary: View Details */}
-            <button
-              onClick={() => navigate("/result/what-we-checked", { state: { url } })}
-              className="font-body text-base px-6 py-3 rounded-lg border border-border/50 bg-secondary/30 text-foreground hover:bg-secondary/50 transition-colors w-full sm:w-auto"
-            >
-              View Details
-            </button>
+            {/* Secondary: Summary */}
+<button
+  onClick={() => navigate("/result/summary", { state: { url } })}
+  className="font-body text-base px-6 py-3 rounded-lg border border-border/50 bg-secondary/30 text-foreground hover:bg-secondary/50 transition-colors w-full sm:w-auto"
+>
+  Summary
+</button>
+
           </div>
         </div>
         ) : (

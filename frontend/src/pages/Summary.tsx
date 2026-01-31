@@ -1,14 +1,18 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { ArrowLeft } from "lucide-react";
-import ResultLayout from "@/components/ui/ResultLayout";
-import { analyzeUrl, type AnalysisResult } from "@/lib/urlAnalysis";
+import { ArrowLeft, Download } from "lucide-react";
+import html2canvas from "html2canvas";
+import jsPDF from "jspdf";
+import ResultLayout from "@/components/layout/ResultLayout";
+import { analyzeUrl } from "@/services/analysisService";
+import type { AnalysisResult } from "@/types/analysis";
 
 const Summary = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const [result, setResult] = useState<AnalysisResult | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const contentRef = useRef<HTMLDivElement>(null);
 
   const url = (location.state as { url?: string })?.url;
 
@@ -36,6 +40,55 @@ const Summary = () => {
     performAnalysis();
   }, [url, navigate]);
 
+  const handleDownloadPDF = async () => {
+    if (!contentRef.current) return;
+
+    try {
+      const canvas = await html2canvas(contentRef.current, {
+        scale: 2, // Improve quality
+        useCORS: true,
+        backgroundColor: '#09090b', // Dark theme background
+        logging: false,
+        onclone: (clonedDoc) => {
+            // Ensure the cloned element has the correct background and padding if needed
+            const element = clonedDoc.getElementById('pdf-content');
+            if (element) {
+                element.style.padding = '2rem';
+                element.style.backgroundColor = '#09090b';
+            }
+        }
+      });
+
+      const imgData = canvas.toDataURL('image/png');
+      const pdf = new jsPDF({
+        orientation: 'portrait',
+        unit: 'mm',
+        format: 'a4',
+      });
+
+      const imgWidth = 210;
+      const pageHeight = 297;
+      const imgHeight = (canvas.height * imgWidth) / canvas.width;
+      
+      let heightLeft = imgHeight;
+      let position = 0;
+
+      pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+      heightLeft -= pageHeight;
+
+      while (heightLeft >= 0) {
+        position = heightLeft - imgHeight;
+        pdf.addPage();
+        pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+        heightLeft -= pageHeight;
+      }
+
+      pdf.save('AtomGuard_Analysis_Report.pdf');
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+    }
+  };
+
   if (!url) return null;
 
   const getRiskLevelText = (riskLevel: string): string => {
@@ -54,13 +107,19 @@ const Summary = () => {
       ) : result && (
         <div className="space-y-8 animate-fade-in-up max-w-3xl mx-auto">
           <div className="space-y-8">
-            <div>
-              <h1 className="font-display text-2xl md:text-3xl font-bold text-foreground mb-8">
+            <div className="flex justify-between items-start mb-8">
+              <h1 className="font-display text-2xl md:text-3xl font-bold text-foreground">
                 Analysis Summary
               </h1>
+              <button
+                onClick={() => navigate("/")}
+                className="text-sm text-muted-foreground hover:text-primary transition-colors"
+              >
+                ← Analyze another URL
+              </button>
             </div>
             
-            <div className="space-y-8">
+            <div id="pdf-content" ref={contentRef} className="space-y-8">
               <div className="space-y-3 pb-4 border-b border-border/40">
                 <h2 className="font-display text-xs font-bold text-muted-foreground uppercase tracking-wide mb-3">Case Reference</h2>
                 <p className="font-mono text-sm text-foreground bg-secondary/30 px-4 py-3 rounded border border-border/40 break-all select-all">
@@ -159,14 +218,22 @@ const Summary = () => {
               </div>
             </div>
 
-            {/* Check Another URL Button */}
-            <div className="text-center pt-8 border-t border-border/50">
+            {/* Action Buttons */}
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-8 border-t border-border/50">
               <button
                 onClick={() => navigate("/")}
                 className="btn-primary font-body inline-flex items-center gap-2"
               >
                 <ArrowLeft className="w-5 h-5" />
                 Check Another URL
+              </button>
+
+              <button
+                onClick={handleDownloadPDF}
+                className="font-body text-base px-6 py-3 rounded-xl border border-border/50 bg-secondary/30 text-foreground hover:bg-secondary/50 transition-colors inline-flex items-center gap-2"
+              >
+                <Download className="w-5 h-5" />
+                Download PDF
               </button>
             </div>
           </div>

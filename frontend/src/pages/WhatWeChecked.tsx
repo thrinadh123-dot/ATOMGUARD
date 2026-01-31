@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { CheckCircle2, XCircle, AlertCircle } from "lucide-react";
-import ResultLayout from "@/components/ui/ResultLayout";
-import { analyzeUrl, type AnalysisResult } from "@/lib/urlAnalysis";
+import ResultLayout from "@/components/layout/ResultLayout";
+import { analyzeUrl } from "@/services/analysisService";
+import type { AnalysisResult } from "@/types/analysis";
 
 const WhatWeChecked = () => {
   const location = useLocation();
@@ -82,9 +83,17 @@ const WhatWeChecked = () => {
       ) : result && (
         <div className="space-y-6 animate-fade-in-up">
           <div className="glass-card p-6">
-            <h1 className="font-display text-2xl md:text-3xl font-bold text-foreground mb-6">
-              What we checked
-            </h1>
+            <div className="flex justify-between items-start mb-6">
+              <h1 className="font-display text-2xl md:text-3xl font-bold text-foreground">
+                What we checked
+              </h1>
+              <button
+                onClick={() => navigate("/")}
+                className="text-sm text-muted-foreground hover:text-primary transition-colors"
+              >
+                ← Analyze another URL
+              </button>
+            </div>
             
             {!result.backendAvailable && (
               <div className="mb-6 p-4 rounded-lg bg-yellow-500/10 border border-yellow-500/20">
@@ -168,11 +177,15 @@ const WhatWeChecked = () => {
             </div>
 
             {/* Disclaimer */}
-            <div className="mt-6 pt-6 border-t border-border/30">
-              <p className="font-body text-xs text-muted-foreground leading-relaxed">
-                <strong className="text-foreground">Important:</strong> These checks are indicators and do not individually determine the final result. We evaluated multiple technical parameters and derived the result using combined ML analysis. Each indicator provides insight into one aspect of the URL's structure and should be considered as part of the overall analysis.
-              </p>
-            </div>
+            <div className="mt-6 pt-6 border-t border-border/30 flex flex-col items-center text-center space-y-2">
+            <p className="font-body text-xs text-muted-foreground max-w-2xl">
+              <strong className="text-foreground">Note:</strong> These indicators are evaluated together to determine the final result.
+            </p>
+
+            <p className="font-body text-xs text-muted-foreground italic max-w-2xl">
+              💡 Tip: Understanding these indicators can help you identify suspicious links even without automated tools.
+            </p>
+          </div>
           </div>
         </div>
       )}

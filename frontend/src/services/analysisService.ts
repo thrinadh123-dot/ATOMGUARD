@@ -1,31 +1,5 @@
-export type Verdict = "PHISHING" | "SAFE" | "SUSPICIOUS" | "PENDING";
-export type RiskLevel = "Low" | "Medium" | "High" | "Unknown";
-
-export interface EvidenceIndicator {
-  label: string;
-  status: "safe" | "warning" | "danger";
-  icon: "check" | "x" | "alert";
-}
-
-export interface AnalysisResult {
-  verdict: Verdict;
-  riskLevel: RiskLevel;
-  confidence?: number; // ML confidence score (0-100 percentage)
-  explanation: string;
-  evidence: EvidenceIndicator[];
-  checkedItems: string[];
-  identificationTips: string[];
-  actionSteps: string[];
-  backendAvailable: boolean;
-  mlAvailable?: boolean;
-  frontendIndicators?: Array<{
-    parameter: string;
-    status: "safe" | "warning" | "danger";
-    icon: "check" | "alert" | "x";
-    message: string;
-    explanation: string;
-  }>;
-}
+import { AnalysisResult } from "@/types/analysis";
+import { extractFrontendIndicators, indicatorsToCheckedItems, type URLIndicator } from "@/lib/frontendIndicators";
 
 /* ---------------- API CONFIGURATION ---------------- */
 
@@ -34,8 +8,6 @@ export interface AnalysisResult {
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
 /* ---------------- FRONTEND INDICATOR EXTRACTION ---------------- */
-
-import { extractFrontendIndicators, indicatorsToCheckedItems, type URLIndicator } from './frontendIndicators';
 
 /**
  * Always extracts frontend indicators (runs regardless of backend availability)
@@ -148,4 +120,3 @@ export const analyzeUrl = async (url: string): Promise<AnalysisResult> => {
     };
   }
 };
-

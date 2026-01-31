@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import ResultLayout from "@/components/ui/ResultLayout";
-import { analyzeUrl, type AnalysisResult } from "@/lib/urlAnalysis";
+import ResultLayout from "@/components/layout/ResultLayout";
+import { analyzeUrl } from "@/services/analysisService";
+import type { AnalysisResult } from "@/types/analysis";
 
 const HowItWorks = () => {
   const location = useLocation();
@@ -49,9 +50,17 @@ const HowItWorks = () => {
       ) : result && (
         <div className="space-y-6 animate-fade-in-up">
           <div className="glass-card p-6">
-            <h1 className="font-display text-2xl md:text-3xl font-bold text-foreground mb-6">
-              How to identify phishing URLs
-            </h1>
+            <div className="flex justify-between items-start mb-6">
+              <h1 className="font-display text-2xl md:text-3xl font-bold text-foreground">
+                How to identify phishing URLs
+              </h1>
+              <button
+                onClick={() => navigate("/")}
+                className="text-sm text-muted-foreground hover:text-primary transition-colors"
+              >
+                ← Analyze another URL
+              </button>
+            </div>
             <div className="space-y-4">
               <ul className="space-y-3">
                 {result.identificationTips.map((tip, index) => (

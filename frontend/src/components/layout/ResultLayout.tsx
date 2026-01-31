@@ -1,7 +1,8 @@
 import { ReactNode } from "react";
+import { useNavigate } from "react-router-dom";
 import { Sparkles } from "lucide-react";
-import AtomLogo from "@/components/ui/AtomLogo";
-import ResultNavigation from "@/components/ui/ResultNavigation";
+import AtomLogo from "@/components/common/AtomLogo";
+import ResultNavigation from "@/components/layout/ResultNavigation";
 import { useIsMobile } from "@/hooks/use-mobile";
 
 interface ResultLayoutProps {
@@ -11,16 +12,20 @@ interface ResultLayoutProps {
 
 const ResultLayout = ({ children, showNavigation = true }: ResultLayoutProps) => {
   const isMobile = useIsMobile();
+  const navigate = useNavigate();
 
   return (
     <div className="min-h-screen bg-background hero-gradient flex flex-col">
       {/* HEADER */}
       <header className="w-full border-b border-border/20">
-        <div className="max-w-7xl mx-auto flex items-center justify-between px-10 min-h-[80px]">
+        <div className="max-w-7xl mx-auto flex items-center justify-between px-10 min-h-[96px] md:min-h-[104px]">
           {/* Brand */}
-          <div className="flex items-center gap-2">
+          <div
+            className="flex items-center gap-2 cursor-pointer select-none"
+            onClick={() => navigate("/")}
+          >
             <AtomLogo className="w-6 h-6 md:w-7 md:h-7 animate-rotate-slow" />
-            <h1 className="font-display text-xl md:text-2xl font-semibold">
+            <h1 className="font-display text-xl md:text-2xl font-semibold tracking-wide text-foreground">
               AtomGuard
             </h1>
           </div>

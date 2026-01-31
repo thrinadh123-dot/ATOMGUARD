@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import ResultLayout from "@/components/ui/ResultLayout";
-import { analyzeUrl, type AnalysisResult } from "@/lib/urlAnalysis";
+import ResultLayout from "@/components/layout/ResultLayout";
+import { analyzeUrl } from "@/services/analysisService";
+import type { AnalysisResult } from "@/types/analysis";
 
 const WhatShouldWeDo = () => {
   const location = useLocation();
@@ -39,37 +40,52 @@ const WhatShouldWeDo = () => {
 
   return (
     <ResultLayout>
-      {isLoading ? (
-        <div className="glass-card p-12 text-center animate-fade-in-up">
-          <div className="w-16 h-16 border-4 border-primary/30 border-t-primary rounded-full animate-spin mx-auto mb-6" />
-          <h2 className="font-display text-2xl font-bold text-foreground mb-2">
-            Loading...
-          </h2>
+  {isLoading ? (
+    <div className="glass-card p-12 text-center animate-fade-in-up">
+      <div className="w-16 h-16 border-4 border-primary/30 border-t-primary rounded-full animate-spin mx-auto mb-6" />
+      <h2 className="font-display text-2xl font-bold text-foreground mb-2">
+        Loading...
+      </h2>
+    </div>
+  ) : result && (
+    <div className="space-y-6 animate-fade-in-up">
+      <div className="glass-card p-6">
+        
+        {/* HEADER ROW (THIS FIXES IT) */}
+        <div className="flex items-center justify-between mb-6">
+          <h1 className="font-display text-2xl md:text-3xl font-bold text-foreground">
+            What should we do
+          </h1>
+
+          <button
+            onClick={() => navigate("/")}
+            className="text-sm text-muted-foreground hover:text-primary transition-colors"
+          >
+            ← Analyze another URL
+          </button>
         </div>
-      ) : result && (
-        <div className="space-y-6 animate-fade-in-up">
-          <div className="glass-card p-6">
-            <h1 className="font-display text-2xl md:text-3xl font-bold text-foreground mb-6">
-              What should we do
-            </h1>
-            <div className="space-y-4">
-              <ul className="space-y-3">
-                {result.actionSteps.map((step, index) => (
-                  <li key={index} className="flex items-start gap-3">
-                    <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center shrink-0 mt-0.5">
-                      <span className="text-xs font-semibold text-primary">{index + 1}</span>
-                    </div>
-                    <p className="font-body text-foreground/80 leading-relaxed flex-1">
-                      {step}
-                    </p>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          </div>
-        </div>
-      )}
-    </ResultLayout>
+
+        {/* CONTENT */}
+        <ul className="space-y-3">
+          {result.actionSteps.map((step, index) => (
+            <li key={index} className="flex items-start gap-3">
+              <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center shrink-0 mt-0.5">
+                <span className="text-xs font-semibold text-primary">
+                  {index + 1}
+                </span>
+              </div>
+              <p className="font-body text-foreground/80 leading-relaxed flex-1">
+                {step}
+              </p>
+            </li>
+          ))}
+        </ul>
+
+      </div>
+    </div>
+  )}
+</ResultLayout>
+
   );
 };
 
